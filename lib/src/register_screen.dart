@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart'; // Necesitarás agregar intl: ^0.18.0 en pubspec.yaml
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -27,6 +28,51 @@ class _RegisterScreenState extends State<RegisterScreen> {
   
   // Para RadioListTile - Tipo de cuenta
   String _accountType = 'personal';
+  
+  // Para DatePicker - Fecha de nacimiento
+  DateTime? _birthDate;
+  
+  // Para DatePicker - Fecha de inicio de membresía (opcional)
+  DateTime? _membershipStartDate;
+  
+  // Para DropdownButton - País
+  String? _selectedCountry;
+  final List<String> _countries = [
+    'Ecuador',
+    'Colombia',
+    'Perú',
+    'Argentina',
+    'Chile',
+    'México',
+    'España',
+    'Estados Unidos',
+    'Otro',
+  ];
+  
+  // Para DropdownButton - Profesión/Ocupación
+  String? _selectedOccupation;
+  final List<String> _occupations = [
+    'Estudiante',
+    'Empleado',
+    'Independiente',
+    'Empresario',
+    'Profesional',
+    'Jubilado',
+    'Desempleado',
+    'Otro',
+  ];
+  
+  // Para DropdownButton - Cómo nos conociste
+  String? _selectedReferral;
+  final List<String> _referralSources = [
+    'Redes sociales',
+    'Búsqueda en Google',
+    'Recomendación de amigo',
+    'Publicidad',
+    'Blog o artículo',
+    'YouTube',
+    'Otro',
+  ];
 
   @override
   void dispose() {
@@ -39,12 +85,87 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
+  Future<void> _selectBirthDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime(2000),
+      firstDate: DateTime(1920),
+      lastDate: DateTime.now(),
+      helpText: 'Selecciona tu fecha de nacimiento',
+      cancelText: 'Cancelar',
+      confirmText: 'Aceptar',
+      fieldLabelText: 'Fecha de nacimiento',
+    );
+    
+    if (picked != null && picked != _birthDate) {
+      setState(() {
+        _birthDate = picked;
+      });
+    }
+  }
+
+  Future<void> _selectMembershipDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      helpText: 'Selecciona fecha de inicio',
+      cancelText: 'Cancelar',
+      confirmText: 'Aceptar',
+      fieldLabelText: 'Fecha de membresía',
+    );
+    
+    if (picked != null && picked != _membershipStartDate) {
+      setState(() {
+        _membershipStartDate = picked;
+      });
+    }
+  }
+
+  String _formatDate(DateTime? date) {
+    if (date == null) return 'No seleccionada';
+    return DateFormat('dd/MM/yyyy').format(date);
+  }
+
+  int? _calculateAge(DateTime? birthDate) {
+    if (birthDate == null) return null;
+    final now = DateTime.now();
+    int age = now.year - birthDate.year;
+    if (now.month < birthDate.month || 
+        (now.month == birthDate.month && now.day < birthDate.day)) {
+      age--;
+    }
+    return age;
+  }
+
   Future<void> _handleRegister() async {
     if (!_acceptTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Debes aceptar los términos y condiciones'),
           backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    if (_birthDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor selecciona tu fecha de nacimiento'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    final age = _calculateAge(_birthDate);
+    if (age != null && age < 18) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Debes ser mayor de 18 años para registrarte'),
+          backgroundColor: Colors.red,
         ),
       );
       return;
@@ -86,6 +207,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _accountType = 'personal';
       _acceptTerms = false;
       _receiveNotifications = false;
+      _birthDate = null;
+      _membershipStartDate = null;
     });
     
     ScaffoldMessenger.of(context).showSnackBar(
@@ -242,7 +365,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 
                 const SizedBox(height: 16),
                 
-                // Campo de teléfono (nuevo)
+                // Campo de teléfono
                 TextFormField(
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
@@ -263,6 +386,38 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     }
                     return null;
                   },
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // NUEVO: Campo de fecha de nacimiento
+                InkWell(
+                  onTap: _selectBirthDate,
+                  child: InputDecorator(
+                    decoration: InputDecoration(
+                      labelText: 'Fecha de nacimiento *',
+                      prefixIcon: const Icon(Icons.cake_outlined),
+                      suffixIcon: _birthDate != null
+                          ? IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                setState(() => _birthDate = null);
+                              },
+                            )
+                          : const Icon(Icons.calendar_today_outlined),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      _birthDate == null
+                          ? 'Selecciona tu fecha de nacimiento'
+                          : '${_formatDate(_birthDate)} (${_calculateAge(_birthDate)} años)',
+                      style: TextStyle(
+                        color: _birthDate == null ? Colors.grey[600] : Colors.black87,
+                      ),
+                    ),
+                  ),
                 ),
                 
                 const SizedBox(height: 16),
@@ -346,6 +501,41 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 
                 const SizedBox(height: 16),
+                
+                // NUEVO: Campo de fecha de inicio de membresía (opcional)
+                if (_accountType == 'empresarial') ...[
+                  InkWell(
+                    onTap: _selectMembershipDate,
+                    child: InputDecorator(
+                      decoration: InputDecoration(
+                        labelText: 'Fecha de inicio de membresía (opcional)',
+                        prefixIcon: const Icon(Icons.business_outlined),
+                        suffixIcon: _membershipStartDate != null
+                            ? IconButton(
+                                icon: const Icon(Icons.clear),
+                                onPressed: () {
+                                  setState(() => _membershipStartDate = null);
+                                },
+                              )
+                            : const Icon(Icons.calendar_month_outlined),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        _membershipStartDate == null
+                            ? 'Selecciona una fecha'
+                            : _formatDate(_membershipStartDate),
+                        style: TextStyle(
+                          color: _membershipStartDate == null 
+                              ? Colors.grey[600] 
+                              : Colors.black87,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 
                 // Campo de contraseña
                 TextFormField(
